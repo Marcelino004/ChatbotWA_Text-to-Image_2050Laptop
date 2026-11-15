@@ -1,0 +1,168 @@
+{
+  "name": "Kelompok 4 - Pipeline Sains Data (Txt2Img & Img2Img)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wa-txt2img",
+        "options": {}
+      },
+      "id": "d5149c14-6e74-4012-88eb-ff3de2e03cff",
+      "name": "1. Input Unstructured Data (WA)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        16
+      ],
+      "webhookId": "kelompok4-wa-txt2img"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst rawText = (body.prompt_asli || '').trim();\nconst lower = rawText.toLowerCase();\nconst mode = body.mode || 'txt2img';\nconst inputImage = body.input_image || null;\n\nlet detectedStyle = 'Photorealistic';\nlet styleTags = 'photorealistic, ultra-detailed photography, natural lighting, 8k uhd, dslr, sharp focus';\nlet negativeExtra = 'anime, cartoon, 3d render, illustration, painting, drawing';\n\nif (lower.includes('anime') || lower.includes('kartun') || lower.includes('manga') || lower.includes('ghibli')) {\n  detectedStyle = 'Anime / Illustration';\n  styleTags = 'anime style, studio ghibli style, vibrant colors, cinematic anime lighting, makoto shinkai style, highly detailed illustration';\n  negativeExtra = 'photorealistic, 3d render, live action';\n} else if (lower.includes('3d') || lower.includes('pixar') || lower.includes('disney') || lower.includes('render')) {\n  detectedStyle = '3D Render';\n  styleTags = '3d render, cute pixar style, disney animation style, octane render, unreal engine 5, ray tracing, volumetric lighting';\n  negativeExtra = '2d, sketch, blurry, low poly';\n} else if (lower.includes('lukisan') || lower.includes('cat air') || lower.includes('kanvas') || lower.includes('painting')) {\n  detectedStyle = 'Digital Painting';\n  styleTags = 'digital concept art, oil painting on canvas, artistic brushstrokes, dramatic lighting';\n  negativeExtra = 'photo, camera, 3d';\n} else if (lower.includes('cyberpunk') || lower.includes('neon') || lower.includes('futuristik') || lower.includes('robot')) {\n  detectedStyle = 'Cyberpunk Sci-Fi';\n  styleTags = 'cyberpunk aesthetic, neon lights, futuristic atmosphere, cinematic sci-fi lighting, hyper-detailed';\n  negativeExtra = 'vintage, rustic';\n}\n\nconst cleanText = rawText.replace(/\\s+/g, ' ').trim();\n\nreturn [{\n  json: {\n    chatId: body.chatId,\n    prompt_asli: cleanText,\n    mode: mode,\n    input_image: inputImage,\n    detected_style: detectedStyle,\n    style_tags: styleTags,\n    negative_extra: negativeExtra,\n    start_time: body.timestamp_masuk || Date.now()\n  }\n}];"
+      },
+      "id": "8176ae97-afcc-4e10-9cc3-cb07477a0791",
+      "name": "2. NLP Preprocessing & Deteksi Gaya",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen2.5:1.5b\",\n  \"prompt\": \"You are an accurate Indonesian-to-English translator and Stable Diffusion prompt engineer.\\nIndonesian input: \\\"{{ $json.prompt_asli }}\\\"\\n\\nTask:\\n1. Translate the exact subjects, style change request, and actions into clear English (subject_en).\\n2. Describe the visual details, lighting, and texture in English (details_en).\\n\\nReturn valid JSON ONLY with keys \\\"subject_en\\\" and \\\"details_en\\\".\",\n  \"format\": \"json\",\n  \"stream\": false,\n  \"keep_alive\": 0,\n  \"options\": {\n    \"num_gpu\": 99,\n    \"num_ctx\": 512,\n    \"num_predict\": 120,\n    \"temperature\": 0.3\n  }\n}",
+        "options": {}
+      },
+      "id": "079bd91c-e941-4830-8303-70af8eae77c3",
+      "name": "3. LLM Translasi & Ekspansi (GPU)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -112,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prep = $('2. NLP Preprocessing & Deteksi Gaya').first().json;\nconst rawResponse = $input.first().json.response || '{}';\n\nlet subjectEn = '';\nlet detailsEn = '';\n\ntry {\n  const parsed = JSON.parse(rawResponse);\n  subjectEn = (parsed.subject_en || parsed.subject || '').trim();\n  detailsEn = (parsed.details_en || parsed.details || parsed.prompt || '').trim();\n} catch (e) {\n  subjectEn = rawResponse.replace(/[\\{\\}\\\"]/g, '').trim();\n}\n\nif (!subjectEn) {\n  subjectEn = prep.prompt_asli;\n}\n\nconst finalPrompt = `(${subjectEn}:1.3), ${detailsEn ? detailsEn + ', ' : ''}${prep.style_tags}, masterpiece, best quality, intricate details`;\nconst negativePrompt = `${prep.negative_extra}, lowres, bad anatomy, bad proportions, extra limbs, extra fingers, mutated hands, poorly drawn face, deformed, ugly, blurry, watermark, text, signature, cropped, out of frame`;\n\nconst sdEndpoint = (prep.mode === 'img2img' && prep.input_image)\n  ? 'http://127.0.0.1:7860/sdapi/v1/img2img'\n  : 'http://127.0.0.1:7860/sdapi/v1/txt2img';\n\nconst sdPayload = {\n  prompt: finalPrompt,\n  negative_prompt: negativePrompt,\n  steps: 25,\n  cfg_scale: 7,\n  width: 512,\n  height: 512,\n  sampler_name: 'DPM++ 2M Karras',\n  override_settings: {\n    CLIP_stop_at_last_layers: 2\n  }\n};\n\nif (prep.mode === 'img2img' && prep.input_image) {\n  sdPayload.init_images = [prep.input_image];\n  sdPayload.denoising_strength = 0.65;\n  sdPayload.resize_mode = 1;\n}\n\nreturn [{\n  json: {\n    chatId: prep.chatId,\n    prompt_asli: prep.prompt_asli,\n    mode: prep.mode,\n    detected_style: prep.detected_style,\n    subject_en: subjectEn,\n    final_prompt: finalPrompt,\n    sd_endpoint: sdEndpoint,\n    sd_payload: sdPayload,\n    start_time: prep.start_time\n  }\n}];"
+      },
+      "id": "b9665d5a-729a-4792-9344-15cc824ebfd6",
+      "name": "4. Rakitan Prompt & Routing Mode",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.sd_endpoint }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.sd_payload) }}",
+        "options": {}
+      },
+      "id": "80b4452c-48e0-43d4-aacb-82a0b7a4d1cf",
+      "name": "5. Sintesis Gambar (SD GPU)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        336,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:3000/send-image",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": \"{{ $('4. Rakitan Prompt & Routing Mode').item.json.chatId }}\",\n  \"modeProses\": \"{{ $('4. Rakitan Prompt & Routing Mode').item.json.mode }}\",\n  \"promptAsli\": {{ JSON.stringify($('4. Rakitan Prompt & Routing Mode').item.json.prompt_asli) }},\n  \"subjectTranslated\": {{ JSON.stringify($('4. Rakitan Prompt & Routing Mode').item.json.subject_en) }},\n  \"detectedStyle\": {{ JSON.stringify($('4. Rakitan Prompt & Routing Mode').item.json.detected_style) }},\n  \"enrichedPrompt\": {{ JSON.stringify($('4. Rakitan Prompt & Routing Mode').item.json.final_prompt) }},\n  \"waktuProses\": \"{{ ((Date.now() - $('4. Rakitan Prompt & Routing Mode').item.json.start_time) / 1000).toFixed(1) }}\",\n  \"imageBase64\": \"{{ $json.images[0] }}\"\n}",
+        "options": {}
+      },
+      "id": "922b8770-8543-4d74-876b-e408ac3c954f",
+      "name": "6. Kirim Gambar & Metrik ke WA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        560,
+        16
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "1. Input Unstructured Data (WA)": {
+      "main": [
+        [
+          {
+            "node": "2. NLP Preprocessing & Deteksi Gaya",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. NLP Preprocessing & Deteksi Gaya": {
+      "main": [
+        [
+          {
+            "node": "3. LLM Translasi & Ekspansi (GPU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. LLM Translasi & Ekspansi (GPU)": {
+      "main": [
+        [
+          {
+            "node": "4. Rakitan Prompt & Routing Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Rakitan Prompt & Routing Mode": {
+      "main": [
+        [
+          {
+            "node": "5. Sintesis Gambar (SD GPU)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Sintesis Gambar (SD GPU)": {
+      "main": [
+        [
+          {
+            "node": "6. Kirim Gambar & Metrik ke WA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

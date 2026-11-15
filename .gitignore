@@ -1,0 +1,84 @@
+# ==============================================================================
+# CRITICAL: Data Pribadi, Sesi WhatsApp, Database, Credential & Log
+# ==============================================================================
+# Sesi login WhatsApp Web & cache Chromium (berisi token/cookies akun WA!)
+.wwebjs_auth/
+**/.wwebjs_auth/
+.wwebjs_cache/
+**/.wwebjs_cache/
+
+# Data lokal n8n (berisi database.sqlite, akun user, encryptionKey, log & riwayat chat)
+n8n_data/
+
+# Environment variables & rahasia
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*secret*
+*credential*
+
+# Database & log runtime
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.log
+logs/
+
+# ==============================================================================
+# Runtimes, Dependencies, Models & Installers (Ukuran Besar / Lokal)
+# ==============================================================================
+# Node.js dependencies
+node_modules/
+**/node_modules/
+
+# Python virtualenvs & bytecode
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Aplikasi portabel, installer, model LLM & Stable Diffusion WebUI
+apps/
+installers/
+ollama_models/
+stable-diffusion-webui/
+
+# Cache & file temporary lokal
+cache/
+tmp/
+temp/
+outputs/
+
+# File model AI & arsip biner besar
+*.ckpt
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.gguf
+*.onnx
+*.exe
+*.msi
+*.nupkg
+*.zip
+*.7z
+*.tar
+*.gz
+
+# ==============================================================================
+# File Sampah OS, IDE & Skrip Patch Sementara Lokal
+# ==============================================================================
+wa_bridge/{
+fix_img2img.js
+update_semua.js
+
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

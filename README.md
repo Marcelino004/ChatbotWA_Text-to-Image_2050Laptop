@@ -2,65 +2,55 @@
 
 Pipeline lokal AI Image Generator berbasis WhatsApp yang mengintegrasikan **WhatsApp Web (`whatsapp-web.js`)**, **n8n Workflow**, **Ollama (`qwen2.5:1.5b`)**, dan **AUTOMATIC1111 Stable Diffusion WebUI (`dreamshaper_8`)**.
 
+## Cara Cepat Menjalankan (Dari Download ZIP / Git Clone)
+
+> **Prasyarat di Windows 10/11 (GPU NVIDIA direkomendasikan VRAM >= 4 GB):**
+> - [Node.js LTS](https://nodejs.org/)
+> - [Git](https://git-scm.com/downloads)
+> - [Python 3.10](https://www.python.org/downloads/release/python-3106/) *(wajib versi 3.10 untuk Stable Diffusion WebUI)*
+> - [Ollama](https://ollama.com/download)
+> *(Jika belum terpasang, `SETUP.bat` juga menawarkan instalasi otomatis via `winget`.)*
+
+### Langkah Menjalankan:
+1. **Download ZIP** (atau `git clone`) lalu ekstrak foldernya.
+2. Klik dua kali **`SETUP.bat`** (atau langsung klik dua kali **`JALANKAN_SEMUA.bat`** — otomatis menjalankan `SETUP.bat` jika baru pertama kali).
+   `SETUP.bat` akan otomatis:
+   - Menginstall dependensi `wa_bridge` & `n8n_app` (termasuk patch `whatsapp-web.js`).
+   - Mengimpor & mengaktifkan workflow `workflows/pipeline-sains-data.json` ke `n8n_data/`.
+   - Mengunduh model LLM `qwen2.5:1.5b` ke `ollama_models/`.
+   - Mengkloning `AUTOMATIC1111/stable-diffusion-webui` (`v1.10.1`), membuat `webui-user.bat`, dan mengunduh checkpoint `dreamshaper_8.safetensors` (~2.1 GB).
+3. Klik dua kali **`JALANKAN_SEMUA.bat`** untuk menyalakan keempat layanan (Ollama, Stable Diffusion WebUI, n8n, WhatsApp Bridge).
+   *(Pada jalankan pertama, jendela Stable Diffusion WebUI akan menyiapkan virtual environment Python/PyTorch beberapa menit.)*
+4. **Scan QR Code WhatsApp** yang muncul di jendela `[4/4] WhatsApp Bridge`.
+5. Kirim pesan teks (atau foto + caption) ke bot:
+   - Chat pribadi: langsung ketik prompt atau kirim gambar + caption.
+   - Grup WhatsApp: awali prompt dengan `!img <prompt>`.
+   - Ganti latar foto: kirim foto dengan caption mengandung kata `latar` atau `background` (misal: `ganti latar belakang taman`).
+
 ## Arsitektur Pipeline
 
-1. **WhatsApp Bridge (`wa_bridge/bridge.js`)**: Menerima prompt teks maupun gambar + caption dari WhatsApp, melakukan praproses input (termasuk dekripsi media HD & compositing background studio), lalu meneruskannya ke webhook n8n (`http://127.0.0.1:5678/webhook/wa-txt2img`).
+1. **WhatsApp Bridge (`wa_bridge/bridge.js`)**: Menerima prompt teks maupun gambar + caption dari WhatsApp, mendekripsi foto HD & memproses compositing latar studio, lalu meneruskan payload ke webhook n8n (`http://127.0.0.1:5678/webhook/wa-txt2img`).
 2. **n8n Workflow (`workflows/pipeline-sains-data.json`)**:
    - Deteksi gaya visual otomatis (*Photorealistic*, *Anime / Illustration*, *3D Render*, *Digital Painting*, *Cyberpunk Sci-Fi*).
    - Translasi & ekspansi prompt Indonesia -> Inggris via **Ollama** (`qwen2.5:1.5b` di `http://127.0.0.1:11434`).
    - Routing mode `txt2img` atau `img2img` ke **Stable Diffusion WebUI API** (`http://127.0.0.1:7860`).
-   - Mengirimkan gambar hasil + metrik kembali ke `http://127.0.0.1:3000/send-image`.
+   - Mengirim hasil gambar + metrik kembali ke `http://127.0.0.1:3000/send-image`.
 
 ## Struktur Repositori
 
-- `JALANKAN_SEMUA.bat` — Menjalankan 4 layanan utama (Ollama, Stable Diffusion WebUI, n8n, WhatsApp Bridge).
+- `SETUP.bat` — Skrip instalasi otomatis 1-klik untuk pengguna baru.
+- `JALANKAN_SEMUA.bat` — Menjalankan 4 layanan utama (otomatis memicu `SETUP.bat` jika belum disiapkan).
 - `start_ollama.bat`, `start_n8n.bat`, `start_wa.bat` — Launcher masing-masing layanan.
-- `wa_bridge/` — Source code jembatan WhatsApp & Express callback server (`bridge.js`, `patch-wwebjs.js`).
+- `wa_bridge/` — Source code jembatan WhatsApp & server callback Express (`bridge.js`, `patch-wwebjs.js`).
 - `n8n_app/` — Definisi dependensi lokal `n8n`.
-- `workflows/pipeline-sains-data.json` — Template workflow n8n siap impor (tanpa kredensial maupun riwayat eksekusi).
-- `docs/webui-user.example.bat` — Contoh konfigurasi `webui-user.bat` untuk Stable Diffusion WebUI.
-
-## Setup Instalasi (Fresh Clone)
-
-### Prasyarat
-- Windows 10/11 dengan GPU NVIDIA (direkomendasikan VRAM >= 4 GB)
-- [Node.js LTS](https://nodejs.org/)
-- [Python 3.10.6](https://www.python.org/)
-- [Ollama](https://ollama.com/)
-- [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
-
-### Langkah Setup
-1. **Install dependensi Node.js**:
-   ```cmd
-   cd wa_bridge
-   npm install
-
-   cd ..\n8n_app
-   npm install
-   ```
-   *(Skrip `postinstall` di `wa_bridge` otomatis menjalankan `patch-wwebjs.js`.)*
-
-2. **Siapkan model Ollama**:
-   ```cmd
-   ollama pull qwen2.5:1.5b
-   ```
-
-3. **Siapkan Stable Diffusion WebUI**:
-   - Clone `AUTOMATIC1111/stable-diffusion-webui` ke folder `stable-diffusion-webui/`.
-   - Unduh checkpoint `dreamshaper_8.safetensors` ke `stable-diffusion-webui/models/Stable-diffusion/`.
-   - Salin `docs/webui-user.example.bat` ke `stable-diffusion-webui/webui-user.bat` lalu sesuaikan path `PYTHON` bila perlu (pastikan flag `--api` aktif).
-
-4. **Impor Workflow n8n**:
-   - Jalankan `start_n8n.bat`, buka `http://localhost:5678`, buat akun lokal Anda, lalu impor `workflows/pipeline-sains-data.json` dan aktifkan (*Publish/Active*).
-
-5. **Jalankan Semua Layanan & Scan QR WhatsApp**:
-   - Jalankan `JALANKAN_SEMUA.bat`, lalu scan QR Code WhatsApp di terminal `[4/4] WhatsApp Bridge`.
-   - Di chat pribadi, kirim prompt teks langsung atau kirim foto + caption. Di grup WhatsApp, awali pesan dengan `!img <prompt>`.
+- `workflows/pipeline-sains-data.json` — Definisi workflow 6-node n8n (tanpa data pribadi maupun riwayat eksekusi).
+- `docs/webui-user.example.bat` — Contoh konfigurasi `webui-user.bat`.
+- `.env.example` — Contoh override environment variable opsional untuk `wa_bridge`.
 
 ## Keamanan & Privasi
 
-Folder berikut berisi sesi pribadi, database lokal, log, dependensi, atau file model berukuran besar sehingga **wajib tetap diabaikan oleh `.gitignore`** dan tidak pernah di-push ke GitHub:
+Folder berikut dibuat lokal saat dijalankan dan **wajib tetap diabaikan oleh `.gitignore`** agar tidak pernah terunggah ke GitHub:
 - `wa_bridge/.wwebjs_auth/` & `wa_bridge/.wwebjs_cache/` (sesi login WhatsApp Web)
 - `n8n_data/` (database SQLite n8n, akun pengguna, encryption key, dan riwayat eksekusi)
 - `cache/`, `apps/`, `installers/`, `ollama_models/`, `stable-diffusion-webui/`, `**/node_modules/`
-- `.env` dan file `*.sqlite`, `*.log`, `*.safetensors`, `*.ckpt`
+- `.env` serta file `*.sqlite`, `*.log`, `*.safetensors`, `*.ckpt`

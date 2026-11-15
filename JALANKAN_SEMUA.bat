@@ -2,6 +2,22 @@
 set "ROOT_DIR=%~dp0"
 if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
 title Master Launcher - Tugas Kelompok 4 Sains Data
+
+if not exist "%ROOT_DIR%\cache\temp" mkdir "%ROOT_DIR%\cache\temp"
+if not exist "%ROOT_DIR%\n8n_data" mkdir "%ROOT_DIR%\n8n_data"
+if not exist "%ROOT_DIR%\ollama_models" mkdir "%ROOT_DIR%\ollama_models"
+
+if not exist "%ROOT_DIR%\wa_bridge\node_modules\whatsapp-web.js" goto :run_setup
+if not exist "%ROOT_DIR%\n8n_app\node_modules\.bin\n8n.cmd" goto :run_setup
+if not exist "%ROOT_DIR%\stable-diffusion-webui\webui-user.bat" goto :run_setup
+goto :start_all
+
+:run_setup
+echo Instalasi awal belum lengkap, menjalankan SETUP.bat otomatis...
+call "%ROOT_DIR%\SETUP.bat" --from-launcher
+if errorlevel 1 exit /b 1
+
+:start_all
 echo Menjalankan 1/4: Server NLP Ollama GPU...
 start "[1/4] Server NLP Ollama GPU" cmd /k "%ROOT_DIR%\start_ollama.bat"
 timeout /t 3 /nobreak >nul

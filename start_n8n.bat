@@ -2,6 +2,9 @@
 set "ROOT_DIR=%~dp0"
 if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
 title [3/4] Server n8n - Kelompok 4
+if not exist "%ROOT_DIR%\cache\temp" mkdir "%ROOT_DIR%\cache\temp"
+if not exist "%ROOT_DIR%\cache\npm" mkdir "%ROOT_DIR%\cache\npm"
+if not exist "%ROOT_DIR%\n8n_data" mkdir "%ROOT_DIR%\n8n_data"
 cd /d "%ROOT_DIR%"
 set "TEMP=%ROOT_DIR%\cache\temp"
 set "TMP=%ROOT_DIR%\cache\temp"

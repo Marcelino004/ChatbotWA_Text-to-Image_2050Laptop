@@ -2,6 +2,8 @@
 set "ROOT_DIR=%~dp0"
 if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
 title [4/4] WhatsApp Bridge - Kelompok 4
+if not exist "%ROOT_DIR%\cache\temp" mkdir "%ROOT_DIR%\cache\temp"
+if not exist "%ROOT_DIR%\cache\puppeteer" mkdir "%ROOT_DIR%\cache\puppeteer"
 set "TEMP=%ROOT_DIR%\cache\temp"
 set "TMP=%ROOT_DIR%\cache\temp"
 set "PUPPETEER_CACHE_DIR=%ROOT_DIR%\cache\puppeteer"

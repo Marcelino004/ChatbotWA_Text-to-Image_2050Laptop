@@ -1,4 +1,4 @@
-# Kelompok 4 - WhatsApp AI Image Generator Bot
+WhatsApp AI Image Generator Bot
 
 Pipeline lokal AI Image Generator berbasis WhatsApp yang mengintegrasikan **WhatsApp Web (`whatsapp-web.js`)**, **n8n Workflow**, **Ollama (`qwen2.5:1.5b`)**, dan **AUTOMATIC1111 Stable Diffusion WebUI (`dreamshaper_8`)**.
 
